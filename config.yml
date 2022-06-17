@@ -1,0 +1,29 @@
+http:
+  port: "8080"
+
+oauth2:
+  client:
+    id: "496327394830-eqlltrnb4n6q1d8crjt60mlj192ml8it.apps.googleusercontent.com"
+    secret: "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"
+  login:
+    url: "https://accounts.google.com/o/oauth2/auth?client_id=%v&redirect_uri=%v&response_type=%v&scope=%v"
+    redirect-uri: "http://localhost:%v/oauth2/callback"
+    response-type: "code"
+    scope: "https://www.googleapis.com/auth/userinfo.email"
+  token:
+    url: "https://oauth2.googleapis.com/token"
+    grant-type: "authorization_code"
+  user-info:
+    url: "https://www.googleapis.com/oauth2/v2/userinfo"
+
+cookies:
+  auth-token: "auth.oauth2.token"
+  forwarded-to: "auth.forwarded.to"
+  display-name: "auth.user.displayName"
+
+ldap:
+  url: "ldap://localhost:389"
+  base-dn: "DC=localhost"
+  admin:
+    user: "admin"
+    password: "123456"
