@@ -1,6 +1,8 @@
 package main
 
-import "github.com/authz-server/http"
+import (
+	"authzserver/http"
+)
 
 func main() {
 	s, err := http.NewServer("config.yml")

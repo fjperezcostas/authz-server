@@ -1,4 +1,4 @@
-module github.com/authz-server
+module authzserver
 
 go 1.17
 

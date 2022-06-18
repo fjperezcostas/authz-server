@@ -1,0 +1,7 @@
+dn: cn=102950888914373964935,dc=localhost
+objectclass: inetOrgPerson
+cn: 102950888914373964935
+givenname: gandalf.the.grey
+sn: bar
+displayname: Gandalf the Grey
+mail: bar20379905@gmail.com

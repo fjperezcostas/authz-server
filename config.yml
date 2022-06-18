@@ -18,8 +18,8 @@ oauth2:
 
 cookies:
   auth-token: "auth.oauth2.token"
-  forwarded-to: "auth.forwarded.to"
-  display-name: "auth.user.displayName"
+  original-uri: "auth.original-uri"
+  display-name: "auth.user.display-name"
 
 ldap:
   url: "ldap://localhost:389"

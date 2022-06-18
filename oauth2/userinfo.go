@@ -1,9 +1,9 @@
 package oauth2
 
 import (
+	"authzserver/config"
 	"encoding/json"
 	"fmt"
-	"github.com/authz-server/config"
 	"io/ioutil"
 	"net/http"
 )

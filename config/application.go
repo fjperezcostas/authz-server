@@ -2,17 +2,18 @@ package config
 
 import (
 	"fmt"
+
 	"gopkg.in/yaml.v3"
 )
 
-type Config struct {
+type Application struct {
 	Http    Http    `yaml:"http"`
 	OAuth2  OAuth2  `yaml:"oauth2"`
 	Cookies Cookies `yaml:"cookies"`
 	Ldap    Ldap    `yaml:"ldap"`
 }
 
-func (c *Config) UnmarshallYaml(data []byte) error {
+func (c *Application) UnmarshallYaml(data []byte) error {
 	if err := yaml.Unmarshal(data, &c); err != nil {
 		return err
 	}
