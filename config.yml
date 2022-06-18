@@ -1,5 +1,6 @@
 http:
   port: "8080"
+  session-id: "auth.session"
 
 oauth2:
   client:
@@ -16,14 +17,9 @@ oauth2:
   user-info:
     url: "https://www.googleapis.com/oauth2/v2/userinfo"
 
-cookies:
-  auth-token: "auth.oauth2.token"
-  forwarded-to: "auth.forwarded.to"
-  display-name: "auth.user.displayName"
-
 ldap:
   url: "ldap://localhost:389"
-  base-dn: "DC=localhost"
+  base-dn: "dc=localhost"
   admin:
     user: "admin"
     password: "123456"

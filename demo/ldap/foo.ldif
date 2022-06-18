@@ -1,0 +1,8 @@
+dn: uid=107856841470403713910,dc=localhost
+objectClass: inetOrgPerson
+cn: Frodo Bolson
+uid: 107856841470403713910
+givenName: Frodo
+sn: Bolson
+displayName: Frodo Bolson
+mail: foo20379905@gmail.com

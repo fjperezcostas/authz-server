@@ -3,18 +3,19 @@ package http
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/authz-server/config"
-	"github.com/authz-server/ldap"
-	"github.com/authz-server/oauth2"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"authzserver/config"
+	"authzserver/ldap"
+	"authzserver/oauth2"
 )
 
 type Server struct {
-	Config config.Config
+	Config *config.Server
 }
 
 func NewServer(configFile string) (*Server, error) {
@@ -22,7 +23,7 @@ func NewServer(configFile string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{}
+	s := &Server{Config: &config.Server{}}
 	if err = s.Config.UnmarshallYaml(yaml); err != nil {
 		return nil, err
 	}
@@ -30,35 +31,47 @@ func NewServer(configFile string) (*Server, error) {
 }
 
 func (s *Server) Start() error {
-	http.HandleFunc("/", s.rootHandler)
-	http.HandleFunc("/oauth2/callback", s.oauth2CallbackHandler)
+	http.HandleFunc("/", s.root)
+	http.HandleFunc("/oauth2/callback", s.oauth2callback)
+	log.Println(fmt.Sprintf("authz server listening port %v...", s.Config.Http.Port))
 	return http.ListenAndServe(fmt.Sprintf(":%v", s.Config.Http.Port), nil)
 }
 
-func (s *Server) rootHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, _ := r.Cookie(s.Config.Cookies.AuthToken)
-	if cookie == nil {
-		oauth2.Login(w, r, s.Config)
-		return
-	}
-	user, err := oauth2.GetUserInfo(cookie.Value, s.Config.OAuth2)
+func (s *Server) root(w http.ResponseWriter, r *http.Request) {
+	session := Session{}
+	cookie, _ := r.Cookie(s.Config.Http.SessionId)
+	err := session.LoadCookie(cookie)
 	if err != nil {
 		log.Println(err)
-		oauth2.Login(w, r, s.Config)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	session.RequestedUrl = r.Header.Get("x-requested-url")
+	if session.Token == "" {
+		s.redirectTo(w, r, s.Config.OAuth2.Login.Url, session)
+		return
+	}
+	user, err := oauth2.GetUserInfo(session.Token, s.Config.OAuth2)
+	if err != nil {
+		log.Println(err)
+		s.redirectTo(w, r, s.Config.OAuth2.Login.Url, session)
 		return
 	}
 	var ldapUser *ldap.User
-	ldapUser, err = ldap.SearchUserByMail(user.Email, s.Config.Ldap)
+	ldapUser, err = ldap.SearchUserByUid(user.Id, s.Config.Ldap)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if ldapUser != nil {
-		cookie = &http.Cookie{
-			Name:  s.Config.Cookies.Mail,
-			Value: ldapUser.Mail,
-			Path:  "/",
+		session.UserInfo.Id = user.Id
+		session.UserInfo.DisplayName = ldapUser.DisplayName
+		cookie, err = session.BuildCookie(s.Config.Http.SessionId)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		http.SetCookie(w, cookie)
 		w.WriteHeader(http.StatusOK)
@@ -67,12 +80,24 @@ func (s *Server) rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) oauth2CallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) oauth2callback(w http.ResponseWriter, r *http.Request) {
 	var request *http.Request
 	var response *http.Response
 	var body []byte
 
-	err := r.ParseForm()
+	cookie, err := r.Cookie(s.Config.Http.SessionId)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	session := Session{}
+	if err := session.LoadCookie(cookie); err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = r.ParseForm()
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -86,6 +111,7 @@ func (s *Server) oauth2CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		"client_id":     {s.Config.OAuth2.Client.Id},
 		"client_secret": {s.Config.OAuth2.Client.Secret},
 		"redirect_uri":  {s.Config.OAuth2.Login.RedirectUri},
+		"access_type":   {"offline"},
 	}
 	request, err = http.NewRequest("POST", s.Config.OAuth2.Token.Url, strings.NewReader(formData.Encode()))
 	if err != nil {
@@ -107,7 +133,7 @@ func (s *Server) oauth2CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if response.StatusCode != 200 {
-		log.Print(fmt.Errorf("wrong status code received from Google %v and with body %v", response.StatusCode, string(body)))
+		log.Print(fmt.Errorf("wrong status code received from Google authz server. Status: %v, body: %v", response.StatusCode, string(body)))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -118,12 +144,17 @@ func (s *Server) oauth2CallbackHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	cookie := &http.Cookie{
-		Name:  s.Config.Cookies.AuthToken,
-		Value: tokenResponse.AccessToken,
-		Path:  "/",
+	session.Token = tokenResponse.AccessToken
+	s.redirectTo(w, r, session.RequestedUrl, session)
+}
+
+func (s *Server) redirectTo(w http.ResponseWriter, r *http.Request, url string, session Session) {
+	cookie, err := session.BuildCookie(s.Config.Http.SessionId)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	http.SetCookie(w, cookie)
-	cookie, _ = r.Cookie(s.Config.Cookies.ForwardedTo)
-	http.Redirect(w, r, cookie.Value, http.StatusFound)
+	http.Redirect(w, r, url, http.StatusFound)
 }

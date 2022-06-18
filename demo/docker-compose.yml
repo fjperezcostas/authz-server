@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  envoy:
+    container_name: envoy
+    image: envoyproxy/envoy:v1.20-latest
+    command: [ "envoy", "-c", "/etc/envoy/envoy.yml" ]
+    volumes:
+      - ./envoy/envoy.yml:/etc/envoy/envoy.yml
+      - ./tls:/etc/envoy/tls
+    network_mode: host
+  ldap:
+    container_name: ldap
+    image: osixia/openldap:1.5.0
+    command: [ "--copy-service" ]
+    volumes:
+      - ./ldap/foo.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/foo.ldif
+      - ./ldap/bar.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/bar.ldif
+    environment:
+      - LDAP_ORGANISATION=ciab
+      - LDAP_DOMAIN=localhost
+      - LDAP_BASE_DN=dc=localhost
+      - LDAP_ADMIN_PASSWORD=123456
+    network_mode: host
+  authz-server:
+    container_name: authz-server
+    image: frjperezcostas/authz-server:latest
+    network_mode: host
