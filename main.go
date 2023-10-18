@@ -2,10 +2,13 @@ package main
 
 import (
 	"authzserver/http"
+	"flag"
 )
 
 func main() {
-	s, err := http.NewServer("config.yml")
+	configFile := flag.String("config", "config.yml", "sets the config file")
+	flag.Parse()
+	s, err := http.NewAuthzServer(*configFile)
 	if err != nil {
 		panic(err)
 	}

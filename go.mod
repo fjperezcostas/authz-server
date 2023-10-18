@@ -7,4 +7,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
+require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
+)

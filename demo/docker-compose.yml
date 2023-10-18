@@ -24,4 +24,7 @@ services:
   authz-server:
     container_name: authz-server
     image: frjperezcostas/authz-server:latest
+    command: [ "--config=/etc/authz-server/config.yml" ]
+    volumes:
+      - ./authz-server/config.yml:/etc/authz-server/config.yml
     network_mode: host
